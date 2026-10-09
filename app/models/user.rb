@@ -6,5 +6,7 @@ class User < ApplicationRecord
 
   enum :role, { user: 0, admin: 1 }
 
+  has_many :orders, dependent: :destroy
+
   validates :first_name, :last_name, presence: true
 end
