@@ -48,3 +48,7 @@ group :development, :test do
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
 end
+
+gem "devise", "~> 5.0"
+gem "devise-jwt", "~> 0.13.0"
+gem "rack-cors", "~> 3.0"
