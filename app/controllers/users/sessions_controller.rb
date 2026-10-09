@@ -7,7 +7,7 @@ class Users::SessionsController < Devise::SessionsController
     render json: { user: user_json(resource) }, status: :ok
   end
 
-  def respond_to_on_destroy
+  def respond_to_on_destroy(*)
     head :no_content
   end
 
