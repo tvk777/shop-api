@@ -1,11 +1,9 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+coffee:
+  name: Espresso
+  description: Strong coffee
+  price: 3.50
 
-one:
-  name: MyString
-  description: MyText
-  price: 9.99
-
-two:
-  name: MyString
-  description: MyText
-  price: 9.99
+tea:
+  name: Green tea
+  description: Light tea
+  price: 2.25

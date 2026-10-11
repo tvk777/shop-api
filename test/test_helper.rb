@@ -10,6 +10,9 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
-    # Add more helper methods to be used by all tests here...
+    def auth_headers_for(user, password: "password123")
+      post user_session_path, params: { user: { email: user.email, password: password } }, as: :json
+      { "Authorization" => response.headers["Authorization"] }
+    end
   end
 end
