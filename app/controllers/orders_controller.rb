@@ -24,7 +24,7 @@ class OrdersController < ApplicationController
     params.require(:order).permit(items: [ :item_id, :quantity ])[:items]
   end
 
-  def order_json(order)
+    def order_json(order)
     {
       id: order.id,
       amount: order.amount,
@@ -33,7 +33,7 @@ class OrdersController < ApplicationController
         {
           item_id: line.item_id,
           name: line.item.name,
-          price: line.item.price,
+          price: line.unit_price,
           quantity: line.quantity
         }
       end

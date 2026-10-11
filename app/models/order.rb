@@ -23,8 +23,8 @@ class Order < ApplicationRecord
       lines.each do |line|
         item     = items[line[:item_id].to_i]
         quantity = line[:quantity].to_i
-        order.order_descriptions.create!(item: item, quantity: quantity)
-        total += item.price * quantity
+        record   = order.order_descriptions.create!(item: item, quantity: quantity, unit_price: item.price)
+        total   += record.unit_price * quantity
       end
 
       order.update!(amount: total)
