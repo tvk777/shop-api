@@ -29,4 +29,20 @@ class Order < ApplicationRecord
   rescue ActiveRecord::RecordInvalid => e
     raise InvalidOrder, e.message
   end
+
+  def as_json(_options = nil)
+    {
+      id: id,
+      amount: amount,
+      created_at: created_at,
+      items: order_descriptions.map do |line|
+        {
+          item_id: line.item_id,
+          name: line.item.name,
+          price: line.unit_price,
+          quantity: line.quantity
+        }
+      end
+    }
+  end
 end

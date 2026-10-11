@@ -1,7 +1,7 @@
 class OrdersController < ApplicationController
   def create
     order = Order.place!(user: current_user, lines: order_lines)
-    render json: order_json(order), status: :created
+    render json: order, status: :created
   rescue Order::InvalidOrder => e
     render json: { errors: [ e.message ] }, status: :unprocessable_entity
   end
@@ -10,33 +10,17 @@ class OrdersController < ApplicationController
     orders = current_user.orders
                          .includes(order_descriptions: :item)
                          .order(created_at: :desc, id: :desc)
-    render json: orders.map { |order| order_json(order) }
+    render json: orders
   end
 
   def show
     order = current_user.orders.includes(order_descriptions: :item).find(params[:id])
-    render json: order_json(order)
+    render json: order
   end
 
   private
 
   def order_lines
-    params.require(:order).permit(items: [ :item_id, :quantity ])[:items]
-  end
-
-    def order_json(order)
-    {
-      id: order.id,
-      amount: order.amount,
-      created_at: order.created_at,
-      items: order.order_descriptions.map do |line|
-        {
-          item_id: line.item_id,
-          name: line.item.name,
-          price: line.unit_price,
-          quantity: line.quantity
-        }
-      end
-    }
+    params.expect(order: [ items: [ [ :item_id, :quantity ] ] ])[:items]
   end
 end

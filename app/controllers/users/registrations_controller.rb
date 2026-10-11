@@ -4,12 +4,12 @@ class Users::RegistrationsController < Devise::RegistrationsController
   private
 
   def sign_up_params
-    params.require(:user).permit(:first_name, :last_name, :email, :password, :password_confirmation)
+    params.expect(user: [ :first_name, :last_name, :email, :password, :password_confirmation ])
   end
 
   def respond_with(resource, _opts = {})
     if resource.persisted?
-      render json: { user: resource.slice(:id, :email, :first_name, :last_name, :role) }, status: :created
+      render json: { user: resource }, status: :created
     else
       render json: { errors: resource.errors.full_messages }, status: :unprocessable_entity
     end

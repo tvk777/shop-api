@@ -22,4 +22,21 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_response :ok
     assert_equal @bobs_order.id, response.parsed_body["id"]
   end
+
+  test "malformed order params return 400" do
+    headers = auth_headers_for(@alice)
+
+    [ { order: "abc" }, { order: { items: "abc" } } ].each do |payload|
+      post orders_path, params: payload, headers: headers, as: :json
+      assert_response :bad_request, "expected 400 for #{payload.inspect}"
+    end
+  end
+
+  test "order JSON keeps its shape" do
+    get order_path(@bobs_order), headers: auth_headers_for(@bob)
+
+    body = response.parsed_body
+    assert_equal %w[amount created_at id items], body.keys.sort
+    assert_equal %w[item_id name price quantity], body["items"].first.keys.sort
+  end
 end
