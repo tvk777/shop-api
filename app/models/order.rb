@@ -2,7 +2,7 @@ class Order < ApplicationRecord
   class InvalidOrder < StandardError; end
 
   belongs_to :user
-  has_many :order_descriptions, dependent: :destroy
+  has_many :order_descriptions, dependent: :destroy, autosave: true, inverse_of: :order
   has_many :items, through: :order_descriptions
 
   validates :amount, numericality: { greater_than_or_equal_to: 0 }
@@ -16,20 +16,16 @@ class Order < ApplicationRecord
     missing = ids.reject { |id| items.key?(id) }
     raise InvalidOrder, "Items not found: #{missing.join(', ')}" if missing.any?
 
-    transaction do
-      order = user.orders.create!(amount: 0)
-      total = 0
+    order = Order.new(user: user)
 
-      lines.each do |line|
-        item     = items[line[:item_id].to_i]
-        quantity = line[:quantity].to_i
-        record   = order.order_descriptions.create!(item: item, quantity: quantity, unit_price: item.price)
-        total   += record.unit_price * quantity
-      end
-
-      order.update!(amount: total)
-      order
+    lines.each do |line|
+      item = items.fetch(line[:item_id].to_i)
+      order.order_descriptions.build(item: item, quantity: line[:quantity].to_i, unit_price: item.price)
     end
+
+    order.amount = order.order_descriptions.sum { |line| line.unit_price * line.quantity }
+    order.save!
+    order
   rescue ActiveRecord::RecordInvalid => e
     raise InvalidOrder, e.message
   end
