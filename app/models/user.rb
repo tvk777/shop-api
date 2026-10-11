@@ -4,7 +4,7 @@ class User < ApplicationRecord
   devise :database_authenticatable, :registerable, :validatable,
          :jwt_authenticatable, jwt_revocation_strategy: self
 
-  enum :role, { user: 0, admin: 1 }
+  enum :role, { user: 0, admin: 1 }, validate: true
 
   has_many :orders, dependent: :destroy
 

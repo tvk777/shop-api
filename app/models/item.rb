@@ -9,6 +9,12 @@ class Item < ApplicationRecord
     where("name ILIKE :term OR description ILIKE :term", term: term)
   }
 
+  PUBLIC_ATTRIBUTES = %i[id name description price].freeze
+
   validates :name, presence: true
   validates :price, numericality: { greater_than_or_equal_to: 0 }
+
+  def as_json(options = nil)
+    super({ only: PUBLIC_ATTRIBUTES }.merge(options || {}))
+  end
 end
