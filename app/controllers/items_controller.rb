@@ -7,6 +7,6 @@ class ItemsController < ApplicationController
       items = items.where("name ILIKE :term OR description ILIKE :term", term: term)
     end
 
-    render json: items.as_json(only: [:id, :name, :description, :price])
+    render json: items.as_json(only: [ :id, :name, :description, :price ])
   end
 end

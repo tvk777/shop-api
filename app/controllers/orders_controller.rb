@@ -3,7 +3,7 @@ class OrdersController < ApplicationController
     order = Order.place!(user: current_user, lines: order_lines)
     render json: order_json(order), status: :created
   rescue Order::InvalidOrder => e
-    render json: { errors: [e.message] }, status: :unprocessable_entity
+    render json: { errors: [ e.message ] }, status: :unprocessable_entity
   end
 
   def index
@@ -21,7 +21,7 @@ class OrdersController < ApplicationController
   private
 
   def order_lines
-    params.require(:order).permit(items: [:item_id, :quantity])[:items]
+    params.require(:order).permit(items: [ :item_id, :quantity ])[:items]
   end
 
   def order_json(order)
