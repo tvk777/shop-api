@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Entrypoint of the development container (see Dockerfile.dev).
+set -e
+cd /app
+
+if [ "$(id -u)" = "0" ]; then
+  # The bundle volume can be older than the Gemfile
+  bundle check > /dev/null 2>&1 || bundle install
+
+  # Run as the owner of the bind-mounted project (stays root on Docker Desktop if it reports root)
+  uid=$(stat -c %u /app)
+  gid=$(stat -c %g /app)
+  if [ "$uid" != "0" ]; then
+    export HOME=/tmp/home
+    mkdir -p "$HOME"
+    chown "$uid:$gid" "$HOME"
+    exec setpriv --reuid="$uid" --regid="$gid" --clear-groups "$@"
+  fi
+fi
+
+exec "$@"
