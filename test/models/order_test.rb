@@ -41,4 +41,18 @@ class OrderTest < ActiveSupport::TestCase
       end
     end
   end
+
+  test "place! rejects a quantity above 99 and saves nothing" do
+    assert_no_difference [ "Order.count", "OrderDescription.count" ] do
+      assert_raises(Order::InvalidOrder) do
+        Order.place!(user: @user, lines: [ { item_id: @coffee.id, quantity: 100 } ])
+      end
+    end
+  end
+
+  test "place! accepts a quantity of 99" do
+    order = Order.place!(user: @user, lines: [ { item_id: @coffee.id, quantity: 99 } ])
+
+    assert_equal 99, order.order_descriptions.first.quantity
+  end
 end

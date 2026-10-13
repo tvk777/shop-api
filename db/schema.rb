@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_11_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_13_110332) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -41,7 +41,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_11_120000) do
     t.decimal "unit_price", precision: 10, scale: 2, null: false
     t.index ["item_id"], name: "index_orders_description_on_item_id"
     t.index ["order_id"], name: "index_orders_description_on_order_id"
-    t.check_constraint "quantity > 0", name: "orders_description_quantity_positive"
+    t.check_constraint "quantity >= 1 AND quantity <= 99", name: "orders_description_quantity_range"
     t.check_constraint "unit_price >= 0::numeric", name: "orders_description_unit_price_non_negative"
   end
 

@@ -18,7 +18,7 @@ A small coffee and tea shop backend. Rails 8 API-only app with PostgreSQL, Devis
 You only need [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on Windows and macOS). You do not need Ruby or PostgreSQL on your machine.
 
 ```bash
-git clone <repository-url> shop-api
+git clone https://github.com/tvk777/shop-api.git shop-api
 cd shop-api
 docker compose up --build
 ```
@@ -184,4 +184,6 @@ Four tables, as in the task specification:
 
 One column was added to the specification: `orders_description.unit_price`. It stores the price paid for each line, so changing an item's price later does not change past orders. The task author confirmed that adding columns is allowed.
 
-Database check constraints back up the model validations (`quantity > 0`, `unit_price >= 0`, `items.price >= 0`, `orders.amount >= 0`).
+Database check constraints back up the model validations (`quantity BETWEEN 1 AND 99`, `unit_price >= 0`, `items.price >= 0`, `orders.amount >= 0`).
+
+Each order line accepts a quantity from 1 to 99. This is a simple safety limit against typos and oversized orders, enforced in both the frontend and the backend. The task has no stock data, so the limit is fixed. In a real shop it would come from the item's available stock (a `stock` column on `items`, checked when the order is placed and decreased inside the same transaction).
