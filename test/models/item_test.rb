@@ -16,6 +16,17 @@ class ItemTest < ActiveSupport::TestCase
     assert_empty Item.search("_")
   end
 
+  test "price accepts the column maximum" do
+    item = Item.new(name: "Max", price: BigDecimal("99999999.99"))
+    assert item.valid?
+  end
+
+  test "price above the column maximum is invalid" do
+    item = Item.new(name: "Too much", price: 100_000_000)
+    assert_not item.valid?
+    assert item.errors[:price].any?
+  end
+
   test "database rejects a negative price" do
     assert_raises(ActiveRecord::StatementInvalid) do
       items(:coffee).update_columns(price: -1)

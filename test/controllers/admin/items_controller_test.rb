@@ -41,6 +41,16 @@ class Admin::ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Mocha", response.parsed_body["name"]
   end
 
+  test "price above the column maximum returns 422" do
+    assert_no_difference "Item.count" do
+      post admin_items_path, params: { item: { name: "Too much", price: 1_000_000_000 } },
+                             headers: auth_headers_for(users(:admin)), as: :json
+    end
+
+    assert_response :unprocessable_entity
+    assert_kind_of Array, response.parsed_body["errors"]
+  end
+
   test "invalid item returns 422" do
     assert_no_difference "Item.count" do
       post admin_items_path, params: { item: { name: "", price: -1 } },

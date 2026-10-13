@@ -10,9 +10,10 @@ class Item < ApplicationRecord
   }
 
   PUBLIC_ATTRIBUTES = %i[id name description price].freeze
+  MAX_PRICE = BigDecimal("99999999.99") # largest value of the decimal(10,2) column
 
   validates :name, presence: true
-  validates :price, numericality: { greater_than_or_equal_to: 0 }
+  validates :price, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_PRICE }
 
   def as_json(options = nil)
     super({ only: PUBLIC_ATTRIBUTES }.merge(options || {}))

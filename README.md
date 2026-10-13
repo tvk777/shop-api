@@ -186,4 +186,6 @@ One column was added to the specification: `orders_description.unit_price`. It s
 
 Database check constraints back up the model validations (`quantity BETWEEN 1 AND 99`, `unit_price >= 0`, `items.price >= 0`, `orders.amount >= 0`).
 
+Item prices go from 0 to 99,999,999.99 (the `decimal(10,2)` column), checked in the frontend and the backend.
+
 Each order line accepts a quantity from 1 to 99. This is a simple safety limit against typos and oversized orders, enforced in both the frontend and the backend. The task has no stock data, so the limit is fixed. In a real shop it would come from the item's available stock (a `stock` column on `items`, checked when the order is placed and decreased inside the same transaction).
