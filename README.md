@@ -122,6 +122,31 @@ bin/rubocop
 | `DB_PASSWORD` | `postgres` | PostgreSQL password |
 | `CORS_ORIGINS` | `http://localhost:5173` | Allowed frontend origins, comma-separated |
 
+## Deploy on Render
+
+Free plan, native Ruby runtime, one Render Postgres database. Create the database first, then a Web Service from this repository.
+
+| Setting | Value |
+| --- | --- |
+| Build command | `./bin/render-build.sh` (bundle install, `db:migrate`, `db:seed`) |
+| Start command | `bin/rails server` |
+| Health check path | `/up` |
+
+The free plan has no pre-deploy command or shell, so migrations and seeds run in the build script. Seeds are idempotent. They create two demo accounts (`admin@example.com` and `user@example.com`, password `password123`) for reviewing the deployed app. In a real deployment they would not be seeded, or would get strong passwords from environment variables.
+
+Environment variables:
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | Internal connection URL of the Render database |
+| `RAILS_MASTER_KEY` | Contents of `config/master.key` (also used as the JWT secret through `secret_key_base`) |
+| `WEB_CONCURRENCY` | Puma workers, for example `1` on the free instance (512 MB RAM) |
+| `CORS_ORIGINS` | The frontend URL, for example `https://your-app.vercel.app` (comma-separated for several) |
+
+Production uses a single database, an in-memory cache store and the `:async` Active Job and Action Cable adapters, because the app has no jobs, channels or caching.
+
+Free plan limits: the web service sleeps after a period of inactivity, so the first request can take up to a minute. The free database expires after 30 days.
+
 ## Test accounts
 
 Created by the seeds:
