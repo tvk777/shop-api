@@ -87,4 +87,18 @@ class Admin::ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert response.parsed_body["errors"].present?
   end
+
+  test "admin search rejects a non-string q and accepts a missing or blank one" do
+    headers = auth_headers_for(users(:admin))
+
+    get "#{admin_items_path}?q[]=x", headers: headers
+    assert_response :bad_request
+    assert_equal({ "errors" => [ "Invalid search parameter" ] }, response.parsed_body)
+
+    [ {}, { q: "" } ].each do |params|
+      get admin_items_path, params: params, headers: headers
+      assert_response :ok
+      assert_equal Item.count, response.parsed_body.size
+    end
+  end
 end

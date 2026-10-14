@@ -39,4 +39,39 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_equal %w[amount created_at id items], body.keys.sort
     assert_equal %w[item_id name price quantity], body["items"].first.keys.sort
   end
+
+  test "malformed item_id or quantity returns 422 and saves nothing" do
+    headers = auth_headers_for(@alice)
+
+    [ "2.7", 2.7, "12junk", "", nil, [ 1 ], -1, "-1" ].each do |bad|
+      [ :item_id, :quantity ].each do |field|
+        line = { item_id: items(:coffee).id, quantity: 1 }.merge(field => bad)
+
+        assert_no_difference [ "Order.count", "OrderDescription.count" ] do
+          post orders_path, params: { order: { items: [ line ] } }, headers: headers, as: :json
+        end
+        assert_response :unprocessable_entity, "expected 422 for #{field}=#{bad.inspect}"
+        assert response.parsed_body["errors"].present?
+      end
+    end
+  end
+
+  test "a very large item_id returns 422" do
+    post orders_path, params: { order: { items: [ { item_id: "9" * 30, quantity: 1 } ] } },
+                      headers: auth_headers_for(@alice), as: :json
+
+    assert_response :unprocessable_entity
+  end
+
+  test "places an order with numeric and digit-string values" do
+    headers = auth_headers_for(@alice)
+
+    [ { item_id: items(:coffee).id, quantity: 2 }, { item_id: items(:coffee).id.to_s, quantity: "2" } ].each do |line|
+      assert_difference [ "Order.count", "OrderDescription.count" ], 1 do
+        post orders_path, params: { order: { items: [ line ] } }, headers: headers, as: :json
+      end
+      assert_response :created
+      assert_equal 2, response.parsed_body["items"].first["quantity"]
+    end
+  end
 end
