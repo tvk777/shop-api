@@ -1,8 +1,19 @@
-# Test accounts (development only, passwords are for local testing)
+# Seed accounts.
+# - user@example.com is a public demo account, password "password123" everywhere.
+# - admin@example.com takes its password from SEED_ADMIN_PASSWORD. Outside
+#   production it falls back to "password123" (local development only); in
+#   production the variable is required. An existing admin is never changed.
+def seed_password(env_name)
+  return ENV[env_name] if ENV[env_name].present?
+  raise "#{env_name} must be set in production" if Rails.env.production?
+
+  "password123"
+end
+
 User.find_or_create_by!(email: "admin@example.com") do |u|
   u.first_name = "Admin"
   u.last_name  = "Shop"
-  u.password   = "password123"
+  u.password   = seed_password("SEED_ADMIN_PASSWORD")
   u.role       = :admin
 end
 

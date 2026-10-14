@@ -132,7 +132,7 @@ Free plan, native Ruby runtime, one Render Postgres database. Create the databas
 | Start command | `bin/rails server` |
 | Health check path | `/up` |
 
-The free plan has no pre-deploy command or shell, so migrations and seeds run in the build script. Seeds are idempotent. They create two demo accounts (`admin@example.com` and `user@example.com`, password `password123`) for reviewing the deployed app. In a real deployment they would not be seeded, or would get strong passwords from environment variables.
+The free plan has no pre-deploy command or shell, so migrations and seeds run in the build script. Seeds are idempotent. They create two accounts for reviewing the deployed app: a public demo user (`user@example.com`, password `password123`) and an admin (`admin@example.com`) whose password comes from `SEED_ADMIN_PASSWORD`. The build fails in production if that variable is missing.
 
 Environment variables:
 
@@ -142,6 +142,7 @@ Environment variables:
 | `RAILS_MASTER_KEY` | Contents of `config/master.key` (also used as the JWT secret through `secret_key_base`) |
 | `WEB_CONCURRENCY` | Puma workers, for example `1` on the free instance (512 MB RAM) |
 | `CORS_ORIGINS` | The frontend URL, for example `https://your-app.vercel.app` (comma-separated for several) |
+| `SEED_ADMIN_PASSWORD` | Required in production. Password of `admin@example.com`, used only when the seeds create the account; an existing admin is not changed |
 
 Production uses a single database, an in-memory cache store and the `:async` Active Job and Action Cable adapters, because the app has no jobs, channels or caching.
 
@@ -153,8 +154,10 @@ Created by the seeds:
 
 | Email | Password | Role |
 | --- | --- | --- |
-| `admin@example.com` | `password123` | admin |
+| `admin@example.com` | `password123` (local development only) | admin |
 | `user@example.com` | `password123` | user |
+
+On the deployed app the admin password is not published here; it is provided to reviewers separately.
 
 ## Authentication
 
