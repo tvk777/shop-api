@@ -176,6 +176,14 @@ curl -s http://localhost:3000/items?q=ethiopia \
 
 Status codes: `401` means no valid token, `403` means the user's role is not allowed, `404` is also returned for another user's order, `422` means validation errors (`{"errors": [...]}`), and `400` means malformed parameters.
 
+## Design decisions and known limitations
+
+- Logout revokes all of the user's tokens on every device. The app uses the devise-jwt `JTIMatcher` strategy, which stores one `jti` per user, and logout changes it.
+- `POST /login` and `POST /signup` return `{"user": {...}}`, following the Devise convention. The profile and admin endpoints return the bare object.
+- Prices and totals are JSON strings, for example `"12.9"`. Rails serializes `BigDecimal` this way, which avoids floating point errors. The frontend converts them for display.
+- JSON is built in the models with `as_json` overrides. This fits an app of this size. A bigger app would use serializers or Jbuilder.
+- The admin password of the deployed app is not published (see [Test accounts](#test-accounts)).
+
 ## API overview
 
 | Method and path | Description | Access |

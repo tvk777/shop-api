@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Development image, used by docker-compose.yml. The production image is ./Dockerfile.
+# Development image, used by docker-compose.yml.
 
 # Keep in sync with .ruby-version
 ARG RUBY_VERSION=3.4.11
