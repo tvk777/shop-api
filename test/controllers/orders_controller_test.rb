@@ -12,6 +12,26 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
+  test "an admin cannot list, view or place orders" do
+    headers = auth_headers_for(users(:admin))
+    forbidden = { "errors" => [ "Admins cannot place or view orders" ] }
+
+    get orders_path, headers: headers
+    assert_response :forbidden
+    assert_equal forbidden, response.parsed_body
+
+    get order_path(@bobs_order), headers: headers
+    assert_response :forbidden
+    assert_equal forbidden, response.parsed_body
+
+    assert_no_difference [ "Order.count", "OrderDescription.count" ] do
+      post orders_path, params: { order: { items: [ { item_id: items(:coffee).id, quantity: 1 } ] } },
+                        headers: headers, as: :json
+    end
+    assert_response :forbidden
+    assert_equal forbidden, response.parsed_body
+  end
+
   test "returns 404 for another user's order" do
     get order_path(@bobs_order), headers: auth_headers_for(@alice)
     assert_response :not_found

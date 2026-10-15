@@ -1,4 +1,6 @@
 class OrdersController < ApplicationController
+  before_action :reject_admin!
+
   def create
     order = Order.place!(user: current_user, lines: order_lines)
     render json: order, status: :created
@@ -19,6 +21,11 @@ class OrdersController < ApplicationController
   end
 
   private
+
+  # Admins manage users and items only; shopping is for regular users.
+  def reject_admin!
+    render json: { errors: [ "Admins cannot place or view orders" ] }, status: :forbidden if current_user.admin?
+  end
 
   def order_lines
     params.expect(order: [ items: [ [ :item_id, :quantity ] ] ])[:items]

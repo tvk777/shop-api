@@ -186,11 +186,13 @@ Status codes: `401` means no valid token, `403` means the user's role is not all
 | `GET /items?q=` | List items, optional search by name or description | any user |
 | `GET /profile` | Own profile | any user |
 | `PATCH /profile` | Edit own data (changing the password requires `current_password`; `role` is ignored) | any user |
-| `POST /orders` | Place an order | any user |
-| `GET /orders` | Own orders with their items | any user |
-| `GET /orders/:id` | One own order | any user |
+| `POST /orders` | Place an order | user |
+| `GET /orders` | Own orders with their items | user |
+| `GET /orders/:id` | One own order | user |
 | `GET /admin/users`, `GET /admin/users/:id`, `PATCH /admin/users/:id` | View and edit users, including `role` | admin |
 | `GET`, `POST /admin/items`, `GET`, `PATCH`, `DELETE /admin/items/:id` | Manage items | admin |
+
+Admins get `403` with `{"errors":["Admins cannot place or view orders"]}` on all `/orders` endpoints.
 
 Place an order:
 
