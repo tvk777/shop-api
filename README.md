@@ -179,6 +179,7 @@ Status codes: `401` means no valid token, `403` means the user's role is not all
 ## Design decisions and known limitations
 
 - Logout revokes all of the user's tokens on every device. The app uses the devise-jwt `JTIMatcher` strategy, which stores one `jti` per user, and logout changes it.
+- Changing the password logs out all other devices and returns a new token in the `Authorization` header. Changing the email requires the current password.
 - `POST /login` and `POST /signup` return `{"user": {...}}`, following the Devise convention. The profile and admin endpoints return the bare object.
 - Prices and totals are JSON strings, for example `"12.9"`. Rails serializes `BigDecimal` this way, which avoids floating point errors. The frontend converts them for display.
 - JSON is built in the models with `as_json` overrides. This fits an app of this size. A bigger app would use serializers or Jbuilder.
@@ -202,6 +203,8 @@ Status codes: `401` means no valid token, `403` means the user's role is not all
 | `GET`, `POST /admin/items`, `GET`, `PATCH`, `DELETE /admin/items/:id` | Manage items | admin |
 
 `GET /admin/users` and `GET /admin/users/:id` add `orders_count` (the number of the user's orders) to each user; the login, signup and profile responses do not include it.
+
+Changing the password with `PATCH /profile` logs out all other devices and returns a new token in the `Authorization` header. Changing the email requires `current_password`.
 
 Admins get `403` with `{"errors":["Admins cannot place or view orders"]}` on all `/orders` endpoints.
 
