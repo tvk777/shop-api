@@ -42,12 +42,53 @@ class OrderTest < ActiveSupport::TestCase
     end
   end
 
-  test "place! rejects a quantity above 99 and saves nothing" do
-    assert_no_difference [ "Order.count", "OrderDescription.count" ] do
-      assert_raises(Order::InvalidOrder) do
-        Order.place!(user: @user, lines: [ { item_id: @coffee.id, quantity: 100 } ])
+  test "place! rejects a quantity outside 1..99 with a clean message and saves nothing" do
+    [ 0, 100 ].each do |quantity|
+      assert_no_difference [ "Order.count", "OrderDescription.count" ] do
+        error = assert_raises(Order::InvalidOrder) do
+          Order.place!(user: @user, lines: [ { item_id: @coffee.id, quantity: quantity } ])
+        end
+        assert_equal "Quantity must be between 1 and 99", error.message
       end
     end
+  end
+
+  test "place! rejects the same item on more than one line and saves nothing" do
+    assert_no_difference [ "Order.count", "OrderDescription.count" ] do
+      error = assert_raises(Order::InvalidOrder) do
+        Order.place!(user: @user, lines: [
+          { item_id: @coffee.id, quantity: 60 },
+          { item_id: @coffee.id.to_s, quantity: "60" }
+        ])
+      end
+      assert_equal "Each item can appear only once in an order", error.message
+    end
+  end
+
+  test "place! reports an item deleted during checkout as not found" do
+    doomed = Item.create!(name: "Discontinued", price: 1)
+    deleted = false
+    # Deletes the item right after place! has loaded it and before the save transaction starts,
+    # like a concurrent admin delete, so the real foreign key check fails on insert.
+    delete_item = lambda do |event|
+      next if deleted || event.payload[:name] != "Item Load"
+
+      deleted = true
+      Item.where(id: doomed.id).delete_all
+    end
+
+    assert_no_difference [ "Order.count", "OrderDescription.count" ] do
+      error = assert_raises(Order::InvalidOrder) do
+        ActiveSupport::Notifications.subscribed(delete_item, "sql.active_record") do
+          Order.place!(user: @user, lines: [
+            { item_id: @coffee.id, quantity: 1 },
+            { item_id: doomed.id, quantity: 1 }
+          ])
+        end
+      end
+      assert_equal "Items not found: #{doomed.id}", error.message
+    end
+    assert deleted, "the item was not deleted during checkout"
   end
 
   test "place! accepts a quantity of 99" do

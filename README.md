@@ -206,6 +206,10 @@ POST /orders
 
 The server takes prices from the database and calculates the total. The order and its lines are saved in one transaction.
 
+Each `item_id` may appear only once per order; a duplicate line returns `422` with `{"errors":["Each item can appear only once in an order"]}`.
+
+`POST /login` allows 10 attempts per 3 minutes per IP and email; more return `429` with `{"errors":["Too many login attempts. Try again later."]}`.
+
 `item_id` and `quantity` must be whole numbers (a JSON integer or a string of digits). Malformed values such as `"2.7"` or `"12junk"`, and an order total above 99,999,999.99, return `422`. A non-string `q` on `GET /items` or `GET /admin/items` (for example `q[]=x`) returns `400` with `{"errors":["Invalid search parameter"]}`.
 
 ## Database

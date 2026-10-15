@@ -32,6 +32,38 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_equal forbidden, response.parsed_body
   end
 
+  test "lists only your own orders, newest first" do
+    newer = Order.place!(user: @alice, lines: [ { item_id: items(:coffee).id, quantity: 1 } ])
+    older = Order.place!(user: @alice, lines: [ { item_id: items(:tea).id, quantity: 1 } ])
+    older.update_columns(created_at: 1.day.ago)
+
+    get orders_path, headers: auth_headers_for(@alice)
+
+    assert_response :ok
+    assert_equal [ newer.id, older.id ], response.parsed_body.map { |order| order["id"] }
+  end
+
+  test "the same item on more than one line returns 422 and saves nothing" do
+    lines = [ { item_id: items(:coffee).id, quantity: 60 }, { item_id: items(:coffee).id, quantity: 60 } ]
+
+    assert_no_difference [ "Order.count", "OrderDescription.count" ] do
+      post orders_path, params: { order: { items: lines } }, headers: auth_headers_for(@alice), as: :json
+    end
+    assert_response :unprocessable_entity
+    assert_equal [ "Each item can appear only once in an order" ], response.parsed_body["errors"]
+  end
+
+  test "a quantity outside 1..99 returns a clean message" do
+    headers = auth_headers_for(@alice)
+
+    [ 0, 100 ].each do |quantity|
+      post orders_path, params: { order: { items: [ { item_id: items(:coffee).id, quantity: quantity } ] } },
+                        headers: headers, as: :json
+      assert_response :unprocessable_entity
+      assert_equal [ "Quantity must be between 1 and 99" ], response.parsed_body["errors"]
+    end
+  end
+
   test "returns 404 for another user's order" do
     get order_path(@bobs_order), headers: auth_headers_for(@alice)
     assert_response :not_found

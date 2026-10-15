@@ -156,6 +156,6 @@ class Admin::UsersControllerTest < ActionDispatch::IntegrationTest
   # Two orders with three lines in total.
   def place_orders_for(user)
     Order.place!(user: user, lines: [ { item_id: items(:coffee).id, quantity: 1 } ])
-    Order.place!(user: user, lines: [ { item_id: items(:coffee).id, quantity: 2 }, { item_id: items(:coffee).id, quantity: 1 } ])
+    Order.place!(user: user, lines: [ { item_id: items(:coffee).id, quantity: 2 }, { item_id: items(:tea).id, quantity: 1 } ])
   end
 end

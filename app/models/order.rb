@@ -13,9 +13,12 @@ class Order < ApplicationRecord
     raise InvalidOrder, "Order must contain at least one item" if lines.blank?
 
     pairs = lines.map do |line|
-      [ parse_integer(line[:item_id], "Item id"), parse_integer(line[:quantity], "Quantity") ]
+      [ parse_integer(line[:item_id], "Item id"), parse_quantity(line[:quantity]) ]
     end
-    ids   = pairs.map(&:first)
+    ids = pairs.map(&:first)
+    # Otherwise the same item on several lines would bypass the per-line quantity limit.
+    raise InvalidOrder, "Each item can appear only once in an order" if ids.uniq.size != ids.size
+
     items = Item.where(id: ids).index_by(&:id)
 
     missing = ids.reject { |id| items.key?(id) }
@@ -31,11 +34,28 @@ class Order < ApplicationRecord
     order.amount = order.order_descriptions.sum { |line| line.unit_price * line.quantity }
     raise InvalidOrder, "Order total is too large" if order.amount > MAX_AMOUNT
 
-    order.save!
+    begin
+      order.save!
+    rescue ActiveRecord::InvalidForeignKey
+      # An item was deleted after the lookup above; report it like any other missing item.
+      missing = ids - Item.where(id: ids).pluck(:id)
+      raise if missing.empty?
+
+      raise InvalidOrder, "Items not found: #{missing.join(', ')}"
+    end
     order
-  rescue ActiveRecord::RecordInvalid => e
-    raise InvalidOrder, e.message
+  rescue ActiveRecord::RecordInvalid
+    # The known rules are checked above with their own messages; never expose internal model names.
+    raise InvalidOrder, "Order could not be placed"
   end
+
+  def self.parse_quantity(value)
+    quantity = parse_integer(value, "Quantity")
+    return quantity if quantity.between?(1, OrderDescription::MAX_QUANTITY)
+
+    raise InvalidOrder, "Quantity must be between 1 and #{OrderDescription::MAX_QUANTITY}"
+  end
+  private_class_method :parse_quantity
 
   # Accepts an Integer or a string of digits only, so "2.7" or "12junk" are not truncated by to_i.
   def self.parse_integer(value, field)
