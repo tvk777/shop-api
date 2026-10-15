@@ -189,8 +189,11 @@ Status codes: `401` means no valid token, `403` means the user's role is not all
 | `POST /orders` | Place an order | user |
 | `GET /orders` | Own orders with their items | user |
 | `GET /orders/:id` | One own order | user |
-| `GET /admin/users`, `GET /admin/users/:id`, `PATCH /admin/users/:id` | View and edit users, including `role` | admin |
+| `GET /admin/users`, `GET /admin/users/:id`, `PATCH /admin/users/:id` | View and edit users, including `role`; `GET` responses include `orders_count` | admin |
+| `DELETE /admin/users/:id` | Delete a user together with all their orders (items are kept); you cannot delete yourself or the last admin (`422`) | admin |
 | `GET`, `POST /admin/items`, `GET`, `PATCH`, `DELETE /admin/items/:id` | Manage items | admin |
+
+`GET /admin/users` and `GET /admin/users/:id` add `orders_count` (the number of the user's orders) to each user; the login, signup and profile responses do not include it.
 
 Admins get `403` with `{"errors":["Admins cannot place or view orders"]}` on all `/orders` endpoints.
 

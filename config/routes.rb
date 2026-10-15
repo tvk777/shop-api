@@ -6,7 +6,7 @@ Rails.application.routes.draw do
              path_names: { sign_in: "login", sign_out: "logout", registration: "signup" },
              controllers: { sessions: "users/sessions", registrations: "users/registrations" }
   namespace :admin do
-    resources :users, only: [ :index, :show, :update ]
+    resources :users, only: [ :index, :show, :update, :destroy ]
     resources :items
   end
   resource :profile, only: [ :show, :update ]

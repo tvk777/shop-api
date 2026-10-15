@@ -60,4 +60,102 @@ class Admin::UsersControllerTest < ActionDispatch::IntegrationTest
     get admin_user_path(id: 0), headers: auth_headers_for(users(:admin))
     assert_response :not_found
   end
+
+  test "deleting a user removes their orders and order lines but no items" do
+    bob = users(:bob)
+    place_orders_for(bob)
+    headers = auth_headers_for(users(:admin))
+
+    assert_difference({ "User.count" => -1, "Order.count" => -2, "OrderDescription.count" => -3 }) do
+      assert_no_difference "Item.count" do
+        delete admin_user_path(bob), headers: headers
+      end
+    end
+
+    assert_response :no_content
+    assert_not User.exists?(bob.id)
+    assert_not Order.exists?(user_id: bob.id)
+  end
+
+  test "deleting a user without orders works" do
+    alice = users(:alice)
+
+    assert_difference "User.count", -1 do
+      delete admin_user_path(alice), headers: auth_headers_for(users(:admin))
+    end
+
+    assert_response :no_content
+    assert_not User.exists?(alice.id)
+  end
+
+  test "an admin cannot delete their own account" do
+    admin = users(:admin)
+    place_orders_for(users(:bob))
+
+    assert_no_difference [ "User.count", "Order.count", "OrderDescription.count" ] do
+      delete admin_user_path(admin), headers: auth_headers_for(admin)
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal [ "You cannot delete your own account" ], response.parsed_body["errors"]
+  end
+
+  test "deleting a missing user returns 404" do
+    delete admin_user_path(id: 0), headers: auth_headers_for(users(:admin))
+    assert_response :not_found
+  end
+
+  test "a regular user cannot delete users" do
+    assert_no_difference "User.count" do
+      delete admin_user_path(users(:bob)), headers: auth_headers_for(users(:alice))
+    end
+
+    assert_response :forbidden
+  end
+
+  test "a deleted user's token is rejected" do
+    bob = users(:bob)
+    bob_headers = auth_headers_for(bob)
+
+    delete admin_user_path(bob), headers: auth_headers_for(users(:admin))
+    assert_response :no_content
+
+    get profile_path, headers: bob_headers
+    assert_response :unauthorized
+  end
+
+  test "admin responses include orders_count" do
+    bob = users(:bob)
+    place_orders_for(bob)
+    headers = auth_headers_for(users(:admin))
+
+    get admin_users_path, headers: headers
+    assert_response :ok
+    counts = response.parsed_body.to_h { |u| [ u["email"], u["orders_count"] ] }
+    assert_equal({ "alice@example.com" => 0, "bob@example.com" => 2, "admin@example.com" => 0 }, counts)
+
+    get admin_user_path(bob), headers: headers
+    assert_response :ok
+    assert_equal 2, response.parsed_body["orders_count"]
+  end
+
+  test "login and profile responses do not include orders_count" do
+    alice = users(:alice)
+    place_orders_for(alice)
+
+    headers = auth_headers_for(alice)
+    assert_not response.parsed_body["user"].key?("orders_count")
+
+    get profile_path, headers: headers
+    assert_response :ok
+    assert_not response.parsed_body.key?("orders_count")
+  end
+
+  private
+
+  # Two orders with three lines in total.
+  def place_orders_for(user)
+    Order.place!(user: user, lines: [ { item_id: items(:coffee).id, quantity: 1 } ])
+    Order.place!(user: user, lines: [ { item_id: items(:coffee).id, quantity: 2 }, { item_id: items(:coffee).id, quantity: 1 } ])
+  end
 end
