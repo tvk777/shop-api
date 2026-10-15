@@ -39,7 +39,7 @@ docker compose down -v                          # stop and delete the database v
 
 On Windows, run Docker from a WSL2 terminal and keep the project inside the WSL file system (for example `~/projects`), not under `/mnt/c`. Otherwise everything is very slow.
 
-Verified on: Windows 11 with WSL2.
+Verified on: Windows 11 with WSL2 and macOS.
 
 ## Run without Docker
 
