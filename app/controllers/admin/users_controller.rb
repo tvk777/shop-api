@@ -2,7 +2,9 @@ class Admin::UsersController < Admin::BaseController
   ADMIN_ATTRIBUTES = (User::PUBLIC_ATTRIBUTES + %i[orders_count]).freeze
 
   def index
-    render json: User.with_orders_count.order(:id).as_json(only: ADMIN_ATTRIBUTES)
+    # The grouped relation's count would be a Hash, so the total is counted without the grouping.
+    users, meta = paginate(User.with_orders_count.order(:id), default_per_page: 20, total: User.count)
+    render json: { data: users.as_json(only: ADMIN_ATTRIBUTES), meta: meta }
   end
 
   def show

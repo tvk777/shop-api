@@ -24,7 +24,7 @@ class Admin::ItemsControllerTest < ActionDispatch::IntegrationTest
 
     get admin_items_path, headers: headers
     assert_response :ok
-    assert_equal Item.count, response.parsed_body.size
+    assert_equal Item.count, response.parsed_body["data"].size
 
     get admin_item_path(items(:tea)), headers: headers
     assert_response :ok
@@ -98,7 +98,43 @@ class Admin::ItemsControllerTest < ActionDispatch::IntegrationTest
     [ {}, { q: "" } ].each do |params|
       get admin_items_path, params: params, headers: headers
       assert_response :ok
-      assert_equal Item.count, response.parsed_body.size
+      assert_equal Item.count, response.parsed_body["data"].size
     end
+  end
+
+  test "admin items are paginated with the default per_page of 20" do
+    19.times { |i| Item.create!(name: format("Item %02d", i + 1), price: 1) }
+    expected = Item.order(:name, :id).pluck(:id)
+    headers = auth_headers_for(users(:admin))
+
+    get admin_items_path, headers: headers
+    assert_response :ok
+    assert_equal expected.first(20), response.parsed_body["data"].map { |item| item["id"] }
+    assert_equal({ "page" => 1, "per_page" => 20, "total" => 21, "total_pages" => 2 }, response.parsed_body["meta"])
+
+    get admin_items_path, params: { page: 2 }, headers: headers
+    assert_response :ok
+    assert_equal expected.last(1), response.parsed_body["data"].map { |item| item["id"] }
+
+    get admin_items_path, params: { page: 3 }, headers: headers
+    assert_response :ok
+    assert_equal [], response.parsed_body["data"]
+    assert_equal({ "page" => 3, "per_page" => 20, "total" => 21, "total_pages" => 2 }, response.parsed_body["meta"])
+
+    get admin_items_path, params: { page: 2, per_page: 5 }, headers: headers
+    assert_response :ok
+    assert_equal expected[5, 5], response.parsed_body["data"].map { |item| item["id"] }
+    assert_equal({ "page" => 2, "per_page" => 5, "total" => 21, "total_pages" => 5 }, response.parsed_body["meta"])
+
+    get admin_items_path, params: { page: "abc" }, headers: headers
+    assert_response :bad_request
+    assert_equal({ "errors" => [ "Invalid pagination parameters" ] }, response.parsed_body)
+  end
+
+  test "a regular user still gets 403 on the admin item list with pagination params" do
+    get admin_items_path, params: { page: 2, per_page: 5 }, headers: auth_headers_for(users(:alice))
+
+    assert_response :forbidden
+    assert_equal [ "Forbidden" ], response.parsed_body["errors"]
   end
 end

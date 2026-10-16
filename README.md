@@ -170,7 +170,7 @@ curl -si -X POST http://localhost:3000/login \
   -d '{"user":{"email":"user@example.com","password":"password123"}}'
 
 # Use the token (the part after "Bearer ")
-curl -s http://localhost:3000/items?q=ethiopia \
+curl -s "http://localhost:3000/items?q=ethiopia&page=1&per_page=12" \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -180,7 +180,8 @@ Status codes: `401` means no valid token, `403` means the user's role is not all
 
 - Logout revokes all of the user's tokens on every device. The app uses the devise-jwt `JTIMatcher` strategy, which stores one `jti` per user, and logout changes it.
 - Changing the password logs out all other devices and returns a new token in the `Authorization` header. Changing the email requires the current password.
-- `POST /login` and `POST /signup` return `{"user": {...}}`, following the Devise convention. The profile and admin endpoints return the bare object.
+- `POST /login` and `POST /signup` return `{"user": {...}}`, following the Devise convention. The profile and the single-record endpoints return the bare object; the four list endpoints return `{"data": [...], "meta": {...}}` (see [Pagination](#pagination)).
+- Pagination uses page numbers with `OFFSET`, which is simple and fits lists of this size. Very large lists would use keyset (cursor) pagination instead.
 - Prices and totals are JSON strings, for example `"12.9"`. Rails serializes `BigDecimal` this way, which avoids floating point errors. The frontend converts them for display.
 - JSON is built in the models with `as_json` overrides. This fits an app of this size. A bigger app would use serializers or Jbuilder.
 - The admin password of the deployed app is not published (see [Test accounts](#test-accounts)).
@@ -192,15 +193,15 @@ Status codes: `401` means no valid token, `403` means the user's role is not all
 | `POST /signup` | Register (role is always `user`) | public |
 | `POST /login` | Log in, returns the JWT in `Authorization` | public |
 | `DELETE /logout` | Log out and revoke the token | any user |
-| `GET /items?q=` | List items, optional search by name or description | any user |
+| `GET /items?q=&page=&per_page=` | List items (paginated), optional search by name or description | any user |
 | `GET /profile` | Own profile | any user |
 | `PATCH /profile` | Edit own data (changing the password requires `current_password`; `role` is ignored) | any user |
 | `POST /orders` | Place an order | user |
-| `GET /orders` | Own orders with their items | user |
+| `GET /orders?page=&per_page=` | Own orders with their items, newest first (paginated) | user |
 | `GET /orders/:id` | One own order | user |
-| `GET /admin/users`, `GET /admin/users/:id`, `PATCH /admin/users/:id` | View and edit users, including `role`; `GET` responses include `orders_count` | admin |
+| `GET /admin/users`, `GET /admin/users/:id`, `PATCH /admin/users/:id` | View and edit users, including `role`; `GET` responses include `orders_count`; the list is paginated | admin |
 | `DELETE /admin/users/:id` | Delete a user together with all their orders (items are kept); you cannot delete yourself or the last admin (`422`) | admin |
-| `GET`, `POST /admin/items`, `GET`, `PATCH`, `DELETE /admin/items/:id` | Manage items | admin |
+| `GET`, `POST /admin/items`, `GET`, `PATCH`, `DELETE /admin/items/:id` | Manage items; the list (`GET /admin/items?q=&page=&per_page=`) is paginated | admin |
 
 `GET /admin/users` and `GET /admin/users/:id` add `orders_count` (the number of the user's orders) to each user; the login, signup and profile responses do not include it.
 
@@ -221,7 +222,30 @@ Each `item_id` may appear only once per order; a duplicate line returns `422` wi
 
 `POST /login` allows 10 attempts per 3 minutes per IP and email; more return `429` with `{"errors":["Too many login attempts. Try again later."]}`.
 
-`item_id` and `quantity` must be whole numbers (a JSON integer or a string of digits). Malformed values such as `"2.7"` or `"12junk"`, and an order total above 99,999,999.99, return `422`. A non-string `q` on `GET /items` or `GET /admin/items` (for example `q[]=x`) returns `400` with `{"errors":["Invalid search parameter"]}`.
+`item_id` and `quantity` must be whole numbers (a JSON integer or a string of digits). Malformed values such as `"2.7"` or `"12junk"`, and an order total above 99,999,999.99, return `422`. A non-string `q` on `GET /items` or `GET /admin/items` (for example `q[]=x`) returns `400` with `{"errors":["Invalid search parameter"]}`. Invalid `page` or `per_page` values return `400` with `{"errors":["Invalid pagination parameters"]}` (see [Pagination](#pagination)).
+
+## Pagination
+
+The four list endpoints, `GET /items`, `GET /orders`, `GET /admin/users` and `GET /admin/items`, return one page of records with its metadata. Each record in `data` has the same fields as before.
+
+```json
+GET /items?q=tea&page=2&per_page=12
+{
+  "data": [ { "id": 14, "name": "Sencha", "description": "Japanese green tea", "price": "6.2" } ],
+  "meta": { "page": 2, "per_page": 12, "total": 13, "total_pages": 2 }
+}
+```
+
+| Parameter | Default | Allowed values |
+| --- | --- | --- |
+| `page` | `1` | A whole number, 1 or more |
+| `per_page` | `12` for `/items`, `10` for `/orders`, `20` for `/admin/users` and `/admin/items` | A whole number from 1 to 50 |
+
+- Values may be integers or strings of digits. Anything else (`0`, `-1`, `abc`, `2.5`, an empty value, an array, `per_page=51`) returns `400` with `{"errors":["Invalid pagination parameters"]}`.
+- `total` is the number of matching records, after the `q` filter on the item lists. `total_pages` is `total / per_page` rounded up, and at least 1, so an empty list is page 1 of 1.
+- A page beyond the last returns `"data": []` with the correct `meta`, not an error.
+- The order is stable, so a record never appears on two pages: items by name, then id; orders newest first (by `created_at`, then id); admin users by id.
+- Single-record endpoints (`GET /orders/:id`, `GET /admin/users/:id`, `GET /admin/items/:id`) are not paginated and return the bare object.
 
 ## Database
 

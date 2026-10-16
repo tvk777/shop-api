@@ -1,6 +1,8 @@
 class ApplicationController < ActionController::API
   class InvalidParameter < StandardError; end
 
+  include Paginatable
+
   before_action :authenticate_user!, unless: :devise_controller?
 
   rescue_from ActiveRecord::RecordNotFound do

@@ -12,7 +12,8 @@ class OrdersController < ApplicationController
     orders = current_user.orders
                          .includes(order_descriptions: :item)
                          .order(created_at: :desc, id: :desc)
-    render json: orders
+    orders, meta = paginate(orders, default_per_page: 10)
+    render json: { data: orders, meta: meta }
   end
 
   def show

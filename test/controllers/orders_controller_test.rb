@@ -40,7 +40,7 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     get orders_path, headers: auth_headers_for(@alice)
 
     assert_response :ok
-    assert_equal [ newer.id, older.id ], response.parsed_body.map { |order| order["id"] }
+    assert_equal [ newer.id, older.id ], response.parsed_body["data"].map { |order| order["id"] }
   end
 
   test "the same item on more than one line returns 422 and saves nothing" do
@@ -125,5 +125,55 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
       assert_response :created
       assert_equal 2, response.parsed_body["items"].first["quantity"]
     end
+  end
+
+  test "paginates your own orders newest first with the default per_page of 10" do
+    orders = 11.times.map do |i|
+      order = Order.place!(user: @alice, lines: [ { item_id: items(:coffee).id, quantity: 1 } ])
+      order.update_columns(created_at: i.hours.ago)
+      order
+    end
+    headers = auth_headers_for(@alice)
+
+    get orders_path, headers: headers
+    assert_response :ok
+    first_page = response.parsed_body["data"].map { |order| order["id"] }
+    assert_equal({ "page" => 1, "per_page" => 10, "total" => 11, "total_pages" => 2 }, response.parsed_body["meta"])
+
+    get orders_path, params: { page: 2 }, headers: headers
+    assert_response :ok
+    second_page = response.parsed_body["data"].map { |order| order["id"] }
+    assert_equal({ "page" => 2, "per_page" => 10, "total" => 11, "total_pages" => 2 }, response.parsed_body["meta"])
+
+    assert_equal orders.map(&:id), first_page + second_page
+    assert_not_includes first_page + second_page, @bobs_order.id
+
+    get orders_path, params: { page: 3 }, headers: headers
+    assert_response :ok
+    assert_equal [], response.parsed_body["data"]
+    assert_equal({ "page" => 3, "per_page" => 10, "total" => 11, "total_pages" => 2 }, response.parsed_body["meta"])
+  end
+
+  test "paginated orders keep their lines" do
+    get orders_path, params: { per_page: 1 }, headers: auth_headers_for(@bob)
+
+    assert_response :ok
+    order = response.parsed_body["data"].first
+    assert_equal %w[amount created_at id items], order.keys.sort
+    assert_equal [ { "item_id" => items(:coffee).id, "name" => "Espresso", "price" => "3.5", "quantity" => 1 } ], order["items"]
+  end
+
+  test "invalid orders pagination returns 400" do
+    get orders_path, params: { per_page: 51 }, headers: auth_headers_for(@alice)
+
+    assert_response :bad_request
+    assert_equal({ "errors" => [ "Invalid pagination parameters" ] }, response.parsed_body)
+  end
+
+  test "an admin still gets 403 on orders with pagination params" do
+    get orders_path, params: { page: 2, per_page: 5 }, headers: auth_headers_for(users(:admin))
+
+    assert_response :forbidden
+    assert_equal({ "errors" => [ "Admins cannot place or view orders" ] }, response.parsed_body)
   end
 end

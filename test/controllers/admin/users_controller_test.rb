@@ -22,8 +22,8 @@ class Admin::UsersControllerTest < ActionDispatch::IntegrationTest
 
     get admin_users_path, headers: headers
     assert_response :ok
-    assert_equal User.count, response.parsed_body.size
-    assert response.parsed_body.none? { |u| u.key?("encrypted_password") || u.key?("jti") }
+    assert_equal User.count, response.parsed_body["data"].size
+    assert response.parsed_body["data"].none? { |u| u.key?("encrypted_password") || u.key?("jti") }
 
     get admin_user_path(users(:bob)), headers: headers
     assert_response :ok
@@ -131,7 +131,7 @@ class Admin::UsersControllerTest < ActionDispatch::IntegrationTest
 
     get admin_users_path, headers: headers
     assert_response :ok
-    counts = response.parsed_body.to_h { |u| [ u["email"], u["orders_count"] ] }
+    counts = response.parsed_body["data"].to_h { |u| [ u["email"], u["orders_count"] ] }
     assert_equal({ "alice@example.com" => 0, "bob@example.com" => 2, "admin@example.com" => 0 }, counts)
 
     get admin_user_path(bob), headers: headers
@@ -149,6 +149,55 @@ class Admin::UsersControllerTest < ActionDispatch::IntegrationTest
     get profile_path, headers: headers
     assert_response :ok
     assert_not response.parsed_body.key?("orders_count")
+  end
+
+  test "admin users are paginated by id with the default per_page of 20" do
+    18.times do |i|
+      User.create!(email: "user#{i}@example.com", password: "password123", first_name: "U", last_name: "Ser")
+    end
+    last_user = User.order(:id).last
+    place_orders_for(last_user)
+    headers = auth_headers_for(users(:admin))
+
+    get admin_users_path, headers: headers
+    assert_response :ok
+    assert_equal User.order(:id).limit(20).ids, response.parsed_body["data"].map { |u| u["id"] }
+    assert_equal({ "page" => 1, "per_page" => 20, "total" => 21, "total_pages" => 2 }, response.parsed_body["meta"])
+    assert_kind_of Integer, response.parsed_body["meta"]["total"]
+
+    get admin_users_path, params: { page: 2 }, headers: headers
+    assert_response :ok
+    assert_equal [ { "id" => last_user.id, "email" => last_user.email, "first_name" => "U", "last_name" => "Ser",
+                     "role" => "user", "orders_count" => 2 } ], response.parsed_body["data"]
+    assert_equal({ "page" => 2, "per_page" => 20, "total" => 21, "total_pages" => 2 }, response.parsed_body["meta"])
+
+    get admin_users_path, params: { page: 3 }, headers: headers
+    assert_response :ok
+    assert_equal [], response.parsed_body["data"]
+    assert_equal({ "page" => 3, "per_page" => 20, "total" => 21, "total_pages" => 2 }, response.parsed_body["meta"])
+
+    get admin_users_path, params: { per_page: 51 }, headers: headers
+    assert_response :bad_request
+    assert_equal({ "errors" => [ "Invalid pagination parameters" ] }, response.parsed_body)
+  end
+
+  test "orders_count is correct on a later page with a small per_page" do
+    bob = users(:bob)
+    place_orders_for(bob)
+    position = User.order(:id).ids.index(bob.id)
+
+    get admin_users_path, params: { page: position + 1, per_page: 1 }, headers: auth_headers_for(users(:admin))
+
+    assert_response :ok
+    assert_equal [ [ bob.id, 2 ] ], response.parsed_body["data"].map { |u| [ u["id"], u["orders_count"] ] }
+    assert_equal({ "page" => position + 1, "per_page" => 1, "total" => 3, "total_pages" => 3 }, response.parsed_body["meta"])
+  end
+
+  test "a regular user still gets 403 on the admin user list with pagination params" do
+    get admin_users_path, params: { page: 2, per_page: 5 }, headers: auth_headers_for(users(:alice))
+
+    assert_response :forbidden
+    assert_equal [ "Forbidden" ], response.parsed_body["errors"]
   end
 
   private
